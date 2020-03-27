@@ -18,10 +18,13 @@ public class Matching_With_Customer implements Runnable {
 	private static final int REQUEST_SIZE_UP = 10;
 	private static final int REQUEST_SIZE_DOWN = 11;
 	
+	private static final int REQUEST_WRITE_BYTE = 12;
+	
 	private static final int ERROR_INFO_SIZE = 2;
 
 	private static final int MAX_BYTE_SIZE = 65535;
 	private static final byte MAX_READ_SIZE = 0x7D;
+	private static final byte MAX_WRITE_SIZE = 0x7B;
 	
 	private static final byte EXCEPTION_NUMBER_1 = 0x01;
 	private static final byte EXCEPTION_NUMBER_2 = 0x02;
@@ -62,22 +65,19 @@ public class Matching_With_Customer implements Runnable {
 			while(Communication_Stop) {
 				if(RequestMsg.read(RequestPacket) != NON_PACKETSIZE) {
 					if(ErrorPacketCheck()) {	
-						byte[] ResponsePacket;
+						byte[] ResponsePacket = null;
 						
 						switch(RequestPacket[FUNCTION_CODE]&0xff) {
 							case READ_HOLDING_REGESTERS:
-								
-								ResponsePacket = Rsp_Packet.Create_ResponsePacket(READ_HOLDING_REGESTERS, ServerObj.ServerData.Request_Read_Processing(Get_ConvertAddress(), Get_ConvertSize(), 0));
-								
-								Response_To_Client(ResponsePacket);
+								ResponsePacket = ServerObj.ServerData.Request_Read_Processing(Get_ConvertAddress(), Get_ConvertSize(), 0);
 								break;
 							case WRITE_MULTIFUL_REGESTERS:
-	
-								ResponsePacket = Rsp_Packet.Create_ResponsePacket(WRITE_MULTIFUL_REGESTERS, ServerObj.ServerData.Request_Write_Processing(Get_ConvertAddress(), Get_ConvertSize(), RequestPacket, 0));
-								
-								Response_To_Client(ResponsePacket);
-
+								ResponsePacket = ServerObj.ServerData.Request_Write_Processing(Get_ConvertAddress(), Get_ConvertSize(), RequestPacket, 0);
 								break;
+						}
+						
+						if(ResponsePacket != null) {
+							Response_To_Client(Rsp_Packet.Create_ResponsePacket((byte)(RequestPacket[FUNCTION_CODE]&0xff), ResponsePacket));
 						}
 					}
 				}
@@ -115,15 +115,19 @@ public class Matching_With_Customer implements Runnable {
 					if(Request_Read_Size < 0 || Request_Read_Size > MAX_READ_SIZE) {
 						ErrorCheck = true;
 						ErrorCode[1] = EXCEPTION_NUMBER_3;
-					} else if((Request_StratAddress < 0 || Request_StratAddress > MAX_BYTE_SIZE) || (Request_StratAddress + Request_Read_Size > MAX_BYTE_SIZE)) {
-						ErrorCheck = true;
-						ErrorCode[1] = EXCEPTION_NUMBER_2;
 					}
-					
 					break;
-			case WRITE_MULTIFUL_REGESTERS:
-					
+				case WRITE_MULTIFUL_REGESTERS:
+					if((Request_Read_Size < 0 || Request_Read_Size > MAX_WRITE_SIZE) || (RequestPacket[REQUEST_WRITE_BYTE] != Request_Read_Size*2)) {
+						ErrorCheck = true;
+						ErrorCode[1] = EXCEPTION_NUMBER_3;
+					}
 					break;
+			}
+			
+			if(!ErrorCheck && (Request_StratAddress < 0 || Request_StratAddress > MAX_BYTE_SIZE) && (Request_StratAddress + Request_Read_Size > MAX_BYTE_SIZE)) {
+				ErrorCheck = true;
+				ErrorCode[1] = EXCEPTION_NUMBER_2;
 			}
 		}
 		
@@ -135,6 +139,8 @@ public class Matching_With_Customer implements Runnable {
 			ErrorResponsePacket = Rsp_Packet.Create_ResponsePacket(ERROR_RESPONSE_REGESTERS, ErrorCode);
 			
 			Response_To_Client(ErrorResponsePacket);
+			
+			return false;
 		}
 		
 		return true;
