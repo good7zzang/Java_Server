@@ -3,6 +3,15 @@ package Communication;
 public class ServerData_Storage {
 	public static final int SETDATA = 114;
 	public static final int ACTDATA = 800;
+
+	private static final int PDU_READ_DATA_BYTE_POS = 1;
+	private static final int READ_INFO_BYTE = 2; //Function-Code + Read Data Size
+	
+	private static final int PDU_WRITE_DATA_FIRST_POS = 13;
+	private static final int WRITE_FIRST_POS = 0;
+
+	private static final int FUNCTION_CODE_BYTE = 1;
+	private static final int DOUBLE_BYTE = 2;
 	
 	public byte [][] ServerData;
 
@@ -52,16 +61,23 @@ public class ServerData_Storage {
 		}
 	}
 	
-	public byte[] Request_Data(int StartAddress, int Length, int Client) {
-		byte[] CopyData = new byte[Length];
-		byte[] SendData = new byte[Length];
+	
+	public byte[] Request_Read_Processing(int StartAddress, int Length, int Mode) {
+		byte[] CopyData = new byte[READ_INFO_BYTE+Length*DOUBLE_BYTE];
 		
-		System.arraycopy(ServerData[Client], StartAddress, CopyData, 0, Length);
-
-		for(int Pos=0; Pos<CopyData.length; Pos++) {
-			SendData[Pos] = (byte) Integer.parseInt(Integer.toHexString(CopyData[Pos]));
-		}
+		System.arraycopy(ServerData[Mode], StartAddress, CopyData, READ_INFO_BYTE, Length*DOUBLE_BYTE);
 		
-		return SendData;
+		CopyData[PDU_READ_DATA_BYTE_POS] = (byte) (Length*DOUBLE_BYTE);
+		
+		return CopyData;
+	}
+	
+	public byte[] Request_Write_Processing(int StartAddress, int Length, byte[] Request_WriteData, int Mode) {
+		byte[] WriteData = new byte[Length+DOUBLE_BYTE];
+		byte[] WritePDU = new byte[FUNCTION_CODE_BYTE+DOUBLE_BYTE+DOUBLE_BYTE];
+		
+		System.arraycopy(Request_WriteData, PDU_WRITE_DATA_FIRST_POS, WriteData, WRITE_FIRST_POS, Length+DOUBLE_BYTE);
+		
+		return WritePDU;
 	}
 }
