@@ -43,27 +43,39 @@ public class Matching_With_Customer implements Runnable {
 
 	public byte[] RequestPacket;
 
+	/**
+	 * Matching With Customer 생성자
+	 * 
+	 * @param ServerLogic 	: Server 인스턴스 변수
+	 * @param ClientSocket 	: Accept 한 Client Socket Descriptor
+	 */
 	public Matching_With_Customer(Server ServerLogic, Socket ClientSocket) {
 		ServerObj = ServerLogic;
 		JoinClient = ClientSocket;
 		
-		RequestPacket = new byte[261]; 
-		Communication_Stop = true;
+		RequestPacket = new byte[261];  //Modbus Max Request Size
+		Communication_Stop = true;		//쓰레드 종료 Flag
 	}
 	
+	/**
+	 * Server & Client Request/Response 처리 쓰레드 메소드
+	 */
 	@Override
 	public void run() {
 		try {
+			/** Response Create Packet 인스턴스 생성 **/
 			Rsp_Packet = new ResponsePacket(this);
 			
+			/** Client Request 처리 **/
 			InputStream RecvMsg = JoinClient.getInputStream();
 			RequestMsg = new DataInputStream(RecvMsg);
 			
+			/** Server -> Client Response 처리 **/
 			OutputStream SendMsg = JoinClient.getOutputStream();
 			ResponseMsg = new DataOutputStream(SendMsg);
 
 			while(Communication_Stop) {
-				if(RequestMsg.read(RequestPacket) != NON_PACKETSIZE) {
+				if(RequestMsg.read(RequestPacket) != NON_PACKETSIZE) {  //Client Request 요청시만 true
 					if(ErrorPacketCheck()) {	
 						byte[] ResponsePacket = null;
 						
@@ -86,20 +98,32 @@ public class Matching_With_Customer implements Runnable {
 			System.out.println("Matching Disconnect");
 			
 			Communication_Stop = false;
-			ServerObj.ClinetSocketClose(JoinClient);
+			ServerObj.ClinetSocketClose(JoinClient); //Client Socket Descriptor 제거
 		} finally{
-			Disconnect_Match();
+			Disconnect_Match(); //Client In/Output Close
 		}
 	}
 	
+	/**
+	 * Client Request에 따른 응답 패킷 전송 메소드
+	 * 
+	 * @param ResponsePacket : Response Packet
+	 * @throws IOException
+	 */
 	private void Response_To_Client(byte[] ResponsePacket) throws IOException {	
 		ResponseMsg.write(ResponsePacket);
 	}
 	
+	/**
+	 * Client Request Packet 검사 메소드
+	 * 
+	 * @return normal : true, abnormal : false
+	 * @throws IOException
+	 */
 	private Boolean ErrorPacketCheck() throws IOException {
 		Boolean ErrorCheck = false;
 		byte RequestFunctionCode = 0;
-		byte[] ErrorCode = new byte[ERROR_INFO_SIZE];
+		byte[] ErrorCode = new byte[ERROR_INFO_SIZE];  //에러코드 저장 byte 배열
 		
 		RequestFunctionCode = (byte) (RequestPacket[FUNCTION_CODE]&0xFF);
 			
@@ -136,7 +160,7 @@ public class Matching_With_Customer implements Runnable {
 			
 			ErrorCode[0] = (byte) (0x80 + RequestPacket[FUNCTION_CODE]);
 			
-			ErrorResponsePacket = Rsp_Packet.Create_ResponsePacket(ERROR_RESPONSE_REGESTERS, ErrorCode);
+			ErrorResponsePacket = Rsp_Packet.Create_ResponsePacket(ERROR_RESPONSE_REGESTERS, ErrorCode); //Response Packet 생성
 			
 			Response_To_Client(ErrorResponsePacket);
 			
@@ -146,10 +170,20 @@ public class Matching_With_Customer implements Runnable {
 		return true;
 	}
 	
+	/**
+	 * Convert 2Byte Hex Address Value -> Integer 변환 
+	 * 
+	 * @return 주소 번지
+	 */
 	private int Get_ConvertAddress() {
 		return RequestPacket[REQUEST_START_ADDRESS_UP]<<8 | RequestPacket[REQUEST_START_ADDRESS_DOWN]&0xFF;
 	}
 	
+	/**
+	 * Convert 2Byte Hex Size Value -> Integer 변환
+	 * 
+	 * @return 요청 사이즈
+	 */
 	private int Get_ConvertSize() {
 		return RequestPacket[REQUEST_SIZE_UP]<<8 | RequestPacket[REQUEST_SIZE_DOWN] & 0xFF;
 	}

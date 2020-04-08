@@ -1,24 +1,22 @@
 package Server;
 
-import java.net.ServerSocket;
 import java.net.Socket;
 
 import Communication.Matching_With_Customer;
 
 public class ServerListening implements Runnable{
-	private ServerSocket Server;
 	private Boolean Listening_Flag;
 	private Server ServerObj;
 	
-	public  ServerListening(Server ServerLogic, ServerSocket MainServer) {
-		ServerObj = ServerLogic;
-		Server = MainServer;
+	/**
+	 * ServerListening 인스턴스 생성자
+	 * 
+	 * @param ServerLogic : Server 객체
+	 */
+	public  ServerListening(Server ServerLogic) {
+		ServerObj = ServerLogic;	//Server 객체 변수 저장
 		
-		Init();
-	}
-
-	private void Init() {
-		Listening_Flag = true;
+		Listening_Flag = true;      //Server Listen 쓰레드 종료 Flag
 	}
 
 	@Override
@@ -27,14 +25,14 @@ public class ServerListening implements Runnable{
 		
 		while(Listening_Flag) {
 			try {
-				Socket ClientSocket = Server.accept();
-				ClientSocket.setSoTimeout(10000);			//Read Timeout 10초
+				Socket ClientSocket = ServerObj.Server.accept(); 
+				ClientSocket.setSoTimeout(10000);				  									//Read Timeout 10초
 				
-				ServerObj.ClientList.add(ClientSocket);
+				ServerObj.ClientList.add(ClientSocket);           									//Client Socket Descriptor 추가
 				
-				Matching_With_Customer Join = new Matching_With_Customer(ServerObj, ClientSocket);
+				Matching_With_Customer Join = new Matching_With_Customer(ServerObj, ClientSocket);  //Client와 Thread 매칭 인스턴스 생성
 				
-				ServerObj.ThreadPool.submit(Join);
+				ServerObj.ThreadPool.submit(Join);													//Client Communication Start
 			} catch (Exception e) {
 				System.out.println("Client Not Accept");
 			}

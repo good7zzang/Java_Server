@@ -61,7 +61,14 @@ public class ServerData_Storage {
 		}
 	}
 	
-	
+	/**
+	 * Client Read Data Request 요청 처리 메소드
+	 * 
+	 * @param StartAddress	: Read 시작 주소
+	 * @param Length		: Read 갯수
+	 * @param Mode
+	 * @return				: Read Data byte array
+	 */
 	public byte[] Request_Read_Processing(int StartAddress, int Length, int Mode) {
 		byte[] CopyData = new byte[READ_INFO_BYTE+Length*DOUBLE_BYTE];
 		
